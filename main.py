@@ -5,36 +5,50 @@ import numpy as np
 import random
 
 class TicTacToe:
+    """
+    Represents the game logic for a 4x4 Tic Tac Toe game with AI opponent.
+    """
     def __init__(self, board_size=4):
+        """
+        Initializes the game state.
+        """
         self.board_size = board_size
-        self.board = [[' ' for _ in range(board_size)] for _ in range(board_size)]
-        self.current_player = 'X'
+        self.board = [[' ' for _ in range(board_size)] for _ in range(board_size)]  # Game board
+        self.current_player = 'X'  # Start with player 'X'
         self.game_over = False
-        self.winner = None
-        self.node_counts = {"with_pruning": []}
+        self.winner = None  # Track the winner
+        self.node_counts = {"with_pruning": []}  # Track node evaluations for AI
 
     def reset(self):
+        """
+        Resets the game to its initial state.
+        """
         self.__init__(board_size=self.board_size)
 
     def check_winner(self):
+        """
+        Checks if there is a winner or if the game is a draw.
+        Returns True if the game is over.
+        """
         size = self.board_size
         lines = []
 
-        # Rows and columns
+        # Collect all possible winning lines
         for i in range(size):
-            lines.append(self.board[i])  # Row
-            lines.append([self.board[j][i] for j in range(size)])  # Column
+            lines.append(self.board[i])  # Rows
+            lines.append([self.board[j][i] for j in range(size)])  # Columns
 
         # Diagonals
-        lines.append([self.board[i][i] for i in range(size)])  # Main diagonal
-        lines.append([self.board[i][size - i - 1] for i in range(size)])  # Anti-diagonal
+        lines.append([self.board[i][i] for i in range(size)])
+        lines.append([self.board[i][size - i - 1] for i in range(size)])
 
         for line in lines:
-            if all(cell == self.current_player for cell in line):
+            if all(cell == self.current_player for cell in line):  # Check for winner
                 self.game_over = True
                 self.winner = self.current_player
                 return True
 
+        # Check for a draw
         if all(self.board[r][c] != ' ' for r in range(size) for c in range(size)):
             self.game_over = True
             return True
@@ -42,33 +56,39 @@ class TicTacToe:
         return False
 
     def evaluate(self, difficulty):
+        """
+        Evaluates the game board for the current AI difficulty level.
+        Returns a score for the board.
+        """
         size = self.board_size
         score = 0
 
         def evaluate_line(line):
+            """
+            Evaluates a single line (row, column, or diagonal) for scoring.
+            """
             nonlocal score
             x_count = line.count('X')
             o_count = line.count('O')
             empty = line.count(' ')
 
+            # Assign scores based on counts
             if o_count == size:
                 score += 1000
             elif x_count == size:
                 score -= 1000
             elif difficulty == 'easy':
-                # Simplified scoring for easy difficulty
                 if o_count == size - 1 and empty == 1:
                     score += 20
                 elif x_count == size - 1 and empty == 1:
                     score -= 10
             else:
-                # Standard scoring for medium/hard difficulty
                 if o_count == size - 1 and empty == 1:
                     score += 50
                 elif x_count == size - 1 and empty == 1:
                     score -= 50
 
-        # Evaluate rows, columns, and diagonals
+        # Evaluate all rows, columns, and diagonals
         for i in range(size):
             evaluate_line(self.board[i])
             evaluate_line([self.board[j][i] for j in range(size)])
@@ -78,18 +98,22 @@ class TicTacToe:
         return score
 
     def minimax(self, depth, maximizing, alpha, beta, difficulty, node_count):
+        """
+        Implements the Minimax algorithm with Alpha-Beta Pruning.
+        """
         node_count[0] += 1  # Increment node count
         if depth == 0 or self.game_over:
             return self.evaluate(difficulty)
 
         best_score = float('-inf') if maximizing else float('inf')
 
+        # Explore all valid moves
         for r in range(self.board_size):
             for c in range(self.board_size):
                 if self.board[r][c] == ' ':
                     self.board[r][c] = 'O' if maximizing else 'X'
                     score = self.minimax(depth - 1, not maximizing, alpha, beta, difficulty, node_count)
-                    self.board[r][c] = ' '
+                    self.board[r][c] = ' '  # Undo move
 
                     if maximizing:
                         best_score = max(best_score, score)
@@ -98,12 +122,15 @@ class TicTacToe:
                         best_score = min(best_score, score)
                         beta = min(beta, best_score)
 
-                    if alpha >= beta:
+                    if alpha >= beta:  # Prune remaining branches
                         break
 
         return best_score
 
     def iterative_deepening_minimax(self, max_depth, difficulty):
+        """
+        Uses iterative deepening for better AI decision-making.
+        """
         best_move = None
         best_score = float('-inf')
         node_count = [0]
@@ -114,24 +141,27 @@ class TicTacToe:
                     if self.board[r][c] == ' ':
                         self.board[r][c] = 'O'
                         score = self.minimax(depth, False, float('-inf'), float('inf'), difficulty, node_count)
-                        self.board[r][c] = ' '
+                        self.board[r][c] = ' '  # Undo move
 
                         if score > best_score:
                             best_score = score
                             best_move = (r, c)
 
-            if abs(best_score) == 1000:  # Early exit if a winning move is found
+            if abs(best_score) == 1000:  # Stop if a winning move is found
                 break
 
         self.node_counts["with_pruning"].append(node_count[0])
         return best_move
 
     def ai_move(self, difficulty):
+        """
+        Makes an AI move based on the difficulty level.
+        """
         if not self.game_over:
             depth_map = {'easy': 1, 'medium': 3, 'hard': 5}
             depth = depth_map.get(difficulty, 3)
 
-            # Add randomness for easy difficulty
+            # Use randomness for easy mode
             if difficulty == 'easy' and random.random() < 0.5:
                 empty_spaces = [(r, c) for r in range(self.board_size) for c in range(self.board_size) if self.board[r][c] == ' ']
                 move = random.choice(empty_spaces)
@@ -145,6 +175,9 @@ class TicTacToe:
 
 
 class TicTacToeGUI:
+    """
+    Handles the graphical user interface for the Tic Tac Toe game.
+    """
     def __init__(self, master):
         self.master = master
         self.master.title("4x4 Tic Tac Toe AI")
@@ -156,7 +189,9 @@ class TicTacToeGUI:
         self.setup_ui()
 
     def setup_ui(self):
-        # Difficulty Selector
+        """
+        Sets up the GUI components.
+        """
         difficulty_frame = tk.Frame(self.master)
         difficulty_frame.pack(pady=10)
 
@@ -164,7 +199,6 @@ class TicTacToeGUI:
         for level in ["easy", "medium", "hard"]:
             tk.Radiobutton(difficulty_frame, text=level.capitalize(), variable=self.difficulty, value=level).pack(side=tk.LEFT)
 
-        # Board Buttons
         self.board_frame = tk.Frame(self.master)
         self.board_frame.pack()
 
@@ -176,15 +210,16 @@ class TicTacToeGUI:
                 row.append(button)
             self.buttons.append(row)
 
-        # Reset Button
         reset_btn = tk.Button(self.master, text="Reset Game", command=self.reset_game)
         reset_btn.pack(pady=10)
 
-        # Plot Button
         plot_btn = tk.Button(self.master, text="Plot Performance", command=self.plot_performance)
         plot_btn.pack(pady=10)
 
     def player_move(self, r, c):
+        """
+        Handles the player's move.
+        """
         if self.game.board[r][c] == ' ' and not self.game.game_over:
             self.game.board[r][c] = 'X'
             self.game.current_player = 'X'
@@ -194,6 +229,9 @@ class TicTacToeGUI:
                 self.master.after(500, self.ai_move)
 
     def ai_move(self):
+        """
+        Executes the AI's move.
+        """
         if not self.game.game_over:
             self.game.ai_move(self.difficulty.get())
             self.update_ui()
@@ -201,6 +239,9 @@ class TicTacToeGUI:
                 self.master.after(100, self.update_ui)
 
     def update_ui(self):
+        """
+        Updates the GUI to reflect the current game state.
+        """
         for r in range(4):
             for c in range(4):
                 text = self.game.board[r][c]
@@ -217,12 +258,18 @@ class TicTacToeGUI:
                 self.master.after(100, lambda: messagebox.showinfo("Game Over", "It's a draw!"))
 
     def reset_game(self):
+        """
+        Resets the game to the initial state.
+        """
         self.game.reset()
         for row in self.buttons:
             for btn in row:
                 btn.config(text='', state=tk.NORMAL)
 
     def plot_performance(self):
+        """
+        Plots the AI's performance based on node evaluations.
+        """
         with_pruning = self.game.node_counts["with_pruning"]
 
         if not with_pruning:
@@ -240,6 +287,9 @@ class TicTacToeGUI:
 
 
 def main():
+    """
+    Main function to launch the Tic Tac Toe game.
+    """
     root = tk.Tk()
     gui = TicTacToeGUI(root)
     root.mainloop()
