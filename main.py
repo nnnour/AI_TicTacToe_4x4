@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import messagebox
 import matplotlib.pyplot as plt
 import numpy as np
+import random
 
 class TicTacToe:
     def __init__(self, board_size=4):
@@ -10,8 +11,7 @@ class TicTacToe:
         self.current_player = 'X'
         self.game_over = False
         self.winner = None
-        self.node_counts = {"with_pruning": [], "without_pruning": []}
-        
+        self.node_counts = {"with_pruning": []}
 
     def reset(self):
         self.__init__(board_size=self.board_size)
@@ -41,7 +41,7 @@ class TicTacToe:
 
         return False
 
-    def evaluate(self):
+    def evaluate(self, difficulty):
         size = self.board_size
         score = 0
 
@@ -55,10 +55,18 @@ class TicTacToe:
                 score += 1000
             elif x_count == size:
                 score -= 1000
-            elif o_count == size - 1 and empty == 1:
-                score += 50
-            elif x_count == size - 1 and empty == 1:
-                score -= 50
+            elif difficulty == 'easy':
+                # Simplified scoring for easy difficulty
+                if o_count == size - 1 and empty == 1:
+                    score += 20
+                elif x_count == size - 1 and empty == 1:
+                    score -= 10
+            else:
+                # Standard scoring for medium/hard difficulty
+                if o_count == size - 1 and empty == 1:
+                    score += 50
+                elif x_count == size - 1 and empty == 1:
+                    score -= 50
 
         # Evaluate rows, columns, and diagonals
         for i in range(size):
@@ -69,10 +77,10 @@ class TicTacToe:
 
         return score
 
-    def minimax(self, depth, maximizing, alpha, beta, use_pruning, node_count):
+    def minimax(self, depth, maximizing, alpha, beta, difficulty, node_count):
         node_count[0] += 1  # Increment node count
         if depth == 0 or self.game_over:
-            return self.evaluate()
+            return self.evaluate(difficulty)
 
         best_score = float('-inf') if maximizing else float('inf')
 
@@ -80,24 +88,22 @@ class TicTacToe:
             for c in range(self.board_size):
                 if self.board[r][c] == ' ':
                     self.board[r][c] = 'O' if maximizing else 'X'
-                    score = self.minimax(depth - 1, not maximizing, alpha, beta, use_pruning, node_count)
+                    score = self.minimax(depth - 1, not maximizing, alpha, beta, difficulty, node_count)
                     self.board[r][c] = ' '
 
                     if maximizing:
                         best_score = max(best_score, score)
-                        if use_pruning:
-                            alpha = max(alpha, best_score)
+                        alpha = max(alpha, best_score)
                     else:
                         best_score = min(best_score, score)
-                        if use_pruning:
-                            beta = min(beta, best_score)
+                        beta = min(beta, best_score)
 
-                    if use_pruning and alpha >= beta:
+                    if alpha >= beta:
                         break
 
         return best_score
 
-    def iterative_deepening_minimax(self, max_depth, use_pruning):
+    def iterative_deepening_minimax(self, max_depth, difficulty):
         best_move = None
         best_score = float('-inf')
         node_count = [0]
@@ -107,7 +113,7 @@ class TicTacToe:
                 for c in range(self.board_size):
                     if self.board[r][c] == ' ':
                         self.board[r][c] = 'O'
-                        score = self.minimax(depth, False, float('-inf'), float('inf'), use_pruning, node_count)
+                        score = self.minimax(depth, False, float('-inf'), float('inf'), difficulty, node_count)
                         self.board[r][c] = ' '
 
                         if score > best_score:
@@ -117,19 +123,22 @@ class TicTacToe:
             if abs(best_score) == 1000:  # Early exit if a winning move is found
                 break
 
-        # Track performance
-        if use_pruning:
-            self.node_counts["with_pruning"].append(node_count[0])
-        else:
-            self.node_counts["without_pruning"].append(node_count[0])
-
+        self.node_counts["with_pruning"].append(node_count[0])
         return best_move
 
-    def ai_move(self, difficulty='medium'):
-        if not self.game_over:  # Ensure AI does not make a move if the game is over
-            depth_map = {'easy': 2, 'medium': 4, 'hard': 6}
-            depth = depth_map.get(difficulty, 4)
-            move = self.iterative_deepening_minimax(depth, use_pruning=True)
+    def ai_move(self, difficulty):
+        if not self.game_over:
+            depth_map = {'easy': 1, 'medium': 3, 'hard': 5}
+            depth = depth_map.get(difficulty, 3)
+
+            # Add randomness for easy difficulty
+            if difficulty == 'easy' and random.random() < 0.5:
+                empty_spaces = [(r, c) for r in range(self.board_size) for c in range(self.board_size) if self.board[r][c] == ' ']
+                move = random.choice(empty_spaces)
+                self.node_counts["with_pruning"].append(0)  # Track 0 nodes for random moves
+            else:
+                move = self.iterative_deepening_minimax(depth, difficulty)
+
             if move:
                 self.board[move[0]][move[1]] = 'O'
                 self.current_player = 'O'
@@ -185,10 +194,10 @@ class TicTacToeGUI:
                 self.master.after(500, self.ai_move)
 
     def ai_move(self):
-        if not self.game.game_over:  # Ensure AI does not play if the game is already over
+        if not self.game.game_over:
             self.game.ai_move(self.difficulty.get())
             self.update_ui()
-            if self.game.check_winner():  # Check winner after the board is updated
+            if self.game.check_winner():
                 self.master.after(100, self.update_ui)
 
     def update_ui(self):
@@ -215,14 +224,13 @@ class TicTacToeGUI:
 
     def plot_performance(self):
         with_pruning = self.game.node_counts["with_pruning"]
-        without_pruning = self.game.node_counts["without_pruning"]
 
-        if not with_pruning and not without_pruning:
-            messagebox.showinfo("No Data", "No moves have been made yet to analyze.")
+        if not with_pruning:
+            messagebox.showinfo("No Data", "No AI moves have been made yet to analyze.")
             return
 
         plt.figure(figsize=(10, 5))
-        plt.plot(with_pruning, label="With Pruning", marker='o')
+        plt.plot(with_pruning, label="With Alpha-Beta Pruning", marker='o')
         plt.title("Node Evaluations per Move")
         plt.xlabel("Move Number")
         plt.ylabel("Nodes Evaluated")
