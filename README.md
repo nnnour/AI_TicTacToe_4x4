@@ -1,6 +1,6 @@
 # 🧠 Tic-Tac-Toe AI 🤖
 
-Welcome to **Tic-Tac-Toe AI** – the ultimate 4x4 twist on the classic game! Whether you're here to outsmart an AI opponent or just enjoy the thrill of strategic play, this game is packed with fun and challenges for everyone! 🎮✨
+Welcome to **Tic-Tac-Toe AI** – the ultimate 4x4 twist on the classic game! Whether you're here to outsmart an AI opponent or just enjoy the thrill of strategic play, this game is packed with fun and challenges for everyone! This game was created for my CS152 AI class! 🎮✨
 
 ## ✨ Features ✨
 
