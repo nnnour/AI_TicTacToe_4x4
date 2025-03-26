@@ -15,7 +15,7 @@ Welcome to **Tic-Tac-Toe AI** – the ultimate 4x4 twist on the classic game! Wh
 
 ## 🎨 What's Under the Hood?
 
-### AI Logic:
+### AI Logic: 
 - **Minimax with Alpha-Beta Pruning**:
   - Used in different modes for optimal decision-making and efficient tree traversal. 🤓
   - Depth of the search tree varies by difficulty level:
